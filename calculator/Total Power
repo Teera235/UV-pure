@@ -1,0 +1,11 @@
+ESP32              : 3.3V * 80mA = 0.264W
+I2C LCD Display    : 5V   * 20mA = 0.1W
+Water Level Sensor : 5V   * 10mA = 0.05W
+pH Sensor          : 5V   * 5mA = 0.025W
+Temperature Sensor : 5V   * 5mA = 0.025W
+TDS Sensor         : 5V   * 10mA = 0.05W
+Relay Modules      : 5V   * 100mA = 0.5W 
+
+Total Power Consumption = 0.264W+0.1W+0.05W+0.025W+0.025W+0.05W+0.5W
+
+Total Power Consumption ≈ 1.014 watts
