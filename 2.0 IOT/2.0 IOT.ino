@@ -64,16 +64,16 @@ void loop() {
 
   int waterLevel = digitalRead(waterLevelPin);
 
-  if (waterLevel == LOW) {
-    digitalWrite(relay1Pin, HIGH); // เปิดปั้มน้ำ
-    digitalWrite(relay2Pin, LOW);  // ปิดวาว
+  if (!isWaterHigh && waterLevel == LOW) {
+    digitalWrite(relay1Pin, LOW);
+    digitalWrite(relay2Pin, HIGH);
     isWaterLow = true;
     isWaterHigh = false;
     isValveOpen = false;
     currentState = "เติมน้ำเข้าถัง";
-  } else if (waterLevel == HIGH && !isWaterHigh) {
-    digitalWrite(relay1Pin, LOW);  // ปิดปั้มน้ำ
-    digitalWrite(relay2Pin, LOW);  // ปิดวาว
+  } else if (!isWaterHigh && waterLevel == HIGH) {
+    digitalWrite(relay1Pin, HIGH);
+    digitalWrite(relay2Pin, HIGH);
     pumpStartTime = millis();
     isWaterHigh = true;
     isWaterLow = false;
@@ -82,18 +82,20 @@ void loop() {
   }
 
   if (isWaterHigh && millis() - pumpStartTime > 180000 && !isValveOpen) {
-    digitalWrite(relay2Pin, HIGH); // เปิดว้าว
+    digitalWrite(relay2Pin, LOW);
     valveOpenTime = millis();
     isValveOpen = true;
     currentState = "ระบายน้ำ 1 นาที";
   }
 
-  if (isValveOpen && millis() - valveOpenTime > 60000) {
-    digitalWrite(relay2Pin, LOW);  // ปิดวาว
+
+if (isValveOpen && millis() - valveOpenTime > 60000) {
+    digitalWrite(relay2Pin, HIGH);
     isValveOpen = false;
-    isWaterHigh = false;
+    isWaterHigh = false;  
     currentState = "";
-  }
+}
+
 
   int phRawValue = analogRead(phSensorPin);
   float phVoltage = phRawValue * VREF / 4095.0;
@@ -107,6 +109,9 @@ void loop() {
 
   delay(1000);
 }
+
+
+
 
 void readTdsSensor(float* currentTemp) {
   static unsigned long analogSampleTimepoint = millis();
