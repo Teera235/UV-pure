@@ -9,8 +9,8 @@
 #include <LiquidCrystal_I2C.h>
 
 char auth[] = "nll1tEz840rKwsUbJ0-SAe-jebSYhAPT";
-char ssid[] = "Samsung s22 ultra";
-char pass[] = "janjaonarak";
+char ssid[] = "Dorm2911 2G";
+char pass[] = "29112911";
 
 #define ONE_WIRE_BUS 2 
 OneWire oneWire(ONE_WIRE_BUS);
@@ -39,12 +39,7 @@ float averageVoltage = 0;
 
 const int relay1Pin = 26;
 const int relay2Pin = 27;
-unsigned long pumpStartTime = 0;
-unsigned long valveOpenTime = 0;
-bool isWaterHigh = false;
-bool isWaterLow = false;
-bool isValveOpen = false;
-String currentState = "";
+const int relay3Pin = 25;
 
 void setup(void) {
   Serial.begin(9600);
@@ -56,8 +51,10 @@ void setup(void) {
   pinMode(tdsSensorPin, INPUT);
   pinMode(relay1Pin, OUTPUT);
   pinMode(relay2Pin, OUTPUT);
+  pinMode(relay3Pin, OUTPUT); 
   digitalWrite(relay1Pin, LOW);
   digitalWrite(relay2Pin, HIGH);
+  digitalWrite(relay3Pin, HIGH);  
   sensors.begin();
 
   Blynk.begin(auth, ssid, pass);
@@ -65,40 +62,7 @@ void setup(void) {
 
 void loop(void) {
   Blynk.run();
-
-  int waterLevel = digitalRead(waterLevelPin);
-
-  if (!isWaterHigh && waterLevel == LOW) {
-    digitalWrite(relay1Pin, LOW);
-    digitalWrite(relay2Pin, HIGH);
-    isWaterLow = true;
-    isWaterHigh = false;
-    isValveOpen = false;
-    currentState = "เติมน้ำเข้าถัง";
-  } else if (!isWaterHigh && waterLevel == HIGH) {
-    digitalWrite(relay1Pin, HIGH);
-    digitalWrite(relay2Pin, HIGH);
-    pumpStartTime = millis();
-    isWaterHigh = true;
-    isWaterLow = false;
-    isValveOpen = false;
-    currentState = "บ่ม 3 นาที";
-  }
-
-  if (isWaterHigh && millis() - pumpStartTime > 180000 && !isValveOpen) {
-    digitalWrite(relay2Pin, LOW);
-    valveOpenTime = millis();
-    isValveOpen = true;
-    currentState = "ระบายน้ำ 1 นาที";
-  }
-
-  if (isValveOpen && millis() - valveOpenTime > 60000) {
-    digitalWrite(relay2Pin, HIGH);
-    isValveOpen = false;
-    isWaterHigh = false;  
-    currentState = "";
-  }
-
+  
   int phRawValue = analogRead(phSensorPin);
   float phVoltage = phRawValue * VREF / 4095.0;
   float ph = phCalibrationFactor - phVoltage;
@@ -109,9 +73,14 @@ void loop(void) {
   Blynk.virtualWrite(V3, tempC);
 
   readTdsSensor(&tempC);
-  displayLCD(waterLevel, ph, tempC, tdsValue);
-  displaySerial(waterLevel, ph, tempC, tdsValue);
-  sendToBlynk(waterLevel, ph, tempC, tdsValue);
+  displayLCD(ph, tempC, tdsValue);
+  displaySerial(ph, tempC, tdsValue);
+  sendToBlynk(ph, tempC, tdsValue);
+
+  if (Serial.available() > 0) {
+    String input = Serial.readStringUntil('\n');
+    controlRelay(input);
+  }
 
   delay(1000);
 }
@@ -138,54 +107,61 @@ void readTdsSensor(float* currentTemp) {
   }
 }
 
-void displayLCD(int waterLevel, float ph, float temperature, float tdsValue) {
+void displayLCD(float ph, float temperature, float tdsValue) {
   lcd.clear();
 
   lcd.setCursor(0, 0);
-  lcd.print("Water Level: ");
-  lcd.print(waterLevel == HIGH ? "High" : "Low");
-
-  lcd.setCursor(0, 1);
   lcd.print("pH  : ");
   lcd.print(ph, 1);
 
-  lcd.setCursor(0, 2);
+  lcd.setCursor(0, 1);
   lcd.print("Temp: ");
   lcd.print(temperature, 1);
   lcd.print(" C");
 
-  lcd.setCursor(0, 3);
+  lcd.setCursor(0, 2);
   lcd.print("TDS : ");
   lcd.print(tdsValue, 0);
   lcd.print(" ppm");
 
-  delay(3000);  
+  delay(500);  
 }
 
-void displaySerial(int waterLevel, float ph, float temperature, float tdsValue) {
-  Serial.print("Water Level: ");
-  Serial.println(waterLevel == HIGH ? "High" : "Low");
+void displaySerial(float ph, float temperature, float tdsValue) {
   Serial.print("pH: ");
   Serial.println(ph);
   Serial.print("Temp: ");
   Serial.println(temperature);
   Serial.print("TDS : ");
   Serial.println(tdsValue);
-  Serial.print("State: ");
-  Serial.println(currentState);
 }
 
-void sendToBlynk(int waterLevel, float ph, float temperature, float tdsValue) {
-  Blynk.virtualWrite(V0, waterLevel == HIGH ? "High" : "Low");
-  Blynk.virtualWrite(V1, waterLevel == HIGH ? "High" : "Low");
+void sendToBlynk(float ph, float temperature, float tdsValue) {
   Blynk.virtualWrite(V2, ph);
   Blynk.virtualWrite(V3, temperature);
   Blynk.virtualWrite(V4, tdsValue);
-
   Blynk.virtualWrite(V5, !digitalRead(relay1Pin)); 
   Blynk.virtualWrite(V6, !digitalRead(relay2Pin)); 
+  Blynk.virtualWrite(V8, !digitalRead(relay3Pin)); 
+}
 
-  Blynk.virtualWrite(V7, currentState);
+void controlRelay(String input) {
+  input.trim();
+  if (input == "10") {
+    digitalWrite(relay1Pin, HIGH);
+  } else if (input == "11") {
+    digitalWrite(relay1Pin, LOW);
+  } else if (input == "30") {
+    digitalWrite(relay2Pin, HIGH);
+  } else if (input == "31") {
+    digitalWrite(relay2Pin, LOW);
+  } else if (input == "20") {
+    digitalWrite(relay3Pin, HIGH);
+  } else if (input == "21") {
+    digitalWrite(relay3Pin, LOW);
+  } else {
+    Serial.println("****************************************");
+  }
 }
 
 int getMedianNum(int bArray[], int iFilterLen) {
