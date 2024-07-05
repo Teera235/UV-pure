@@ -106,15 +106,7 @@ void loop(void) {
   sensors.requestTemperatures(); 
   float tempC = sensors.getTempCByIndex(0); 
 
-  if (tempC != DEVICE_DISCONNECTED_C) { 
-    Serial.print("Temperature: ");
-    Serial.print(tempC);
-    Serial.println(" *C");
-
-    Blynk.virtualWrite(V3, tempC); 
-  } else {
-    Serial.println("Error: Could not read temperature data");
-  }
+  Blynk.virtualWrite(V3, tempC);
 
   readTdsSensor(&tempC);
   displayLCD(waterLevel, ph, tempC, tdsValue);
